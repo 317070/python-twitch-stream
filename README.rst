@@ -4,6 +4,9 @@
 .. image:: https://travis-ci.org/317070/python-twitch-stream.svg
     :target: https://travis-ci.org/317070/python-twitch-stream
 
+.. image:: https://coveralls.io/repos/317070/python-twitch-stream/badge.svg
+    :target: https://coveralls.io/github/317070/python-twitch-stream
+
 .. image:: https://img.shields.io/badge/license-MIT-green.svg
     :target: https://github.com/Lasagne/Lasagne/blob/master/LICENSE
 
