@@ -30,9 +30,15 @@ import os
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.doctest',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.linkcode',  # link to github, see linkcode_resolve() below
+    'numpydoc',
 ]
+
+# see http://stackoverflow.com/q/12206334/562769
+numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -55,6 +61,12 @@ copyright = u'2015, Jonas Degrave'
 # built documents.
 #
 # The short X.Y version.
+import twitchstream
+# The short X.Y version.
+version = '.'.join(twitchstream.__version__.split('.', 2)[:2])
+# The full version, including alpha/beta/rc tags.
+release = twitchstream.__version__
+
 version = '0.0.dev1'
 # The full version, including alpha/beta/rc tags.
 release = '0.0.dev1'
@@ -96,6 +108,35 @@ pygments_style = 'sphinx'
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
+
+# Resolve function for the linkcode extension.
+def linkcode_resolve(domain, info):
+    """Resolve the links to github matching the documentation"""
+    def find_source():
+        """try to find the file and line number,
+        based on code from numpy"""
+        # https://github.com/numpy/numpy/blob/master/doc/source/conf.py#L286
+        obj = sys.modules[info['module']]
+        for part in info['fullname'].split('.'):
+            obj = getattr(obj, part)
+        import inspect
+        import os
+        fn = inspect.getsourcefile(obj)
+        fn = os.path.relpath(fn,
+                             start=os.path.dirname(
+                                 twitchstream.__file__)
+                             )
+        source, lineno = inspect.getsourcelines(obj)
+        return fn, lineno, lineno + len(source) - 1
+
+    if domain != 'py' or not info['module']:
+        return None
+    try:
+        filename = 'twitchstream/%s#L%d-L%d' % find_source()
+    except Exception:
+        filename = info['module'].replace('.', '/') + '.py'
+    tag = 'master' if 'dev' in release else ('v' + release)
+    return "https://github.com/317070/python-twitch-stream/blob/%s/%s" % (tag, filename)
 
 
 # -- Options for HTML output ----------------------------------------------
@@ -245,7 +286,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'python-twitch-stream', u'python-twitch-stream Documentation',
-   u'Jonas Degrave', 'python-twitch-stream', 'One line description of project.',
+   u'Jonas Degrave', 'python-twitch-stream', 'Interface for Twitch video and chat streams.',
    'Miscellaneous'),
 ]
 
