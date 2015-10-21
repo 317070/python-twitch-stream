@@ -1,16 +1,10 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import numpy as np
 import subprocess as sp
-import time
 import signal
-import socket
-import sys
-import re
-import fcntl, os
-import errno
 import threading
-from models.default import TWITCH_STREAM_KEY, TWITCH_OAUTH, TWITCH_USERNAME
-
-
 
 class TwitchOutputStream(object):
     def __init__(self, width=640, height=480, fps=30., twitch_stream_key=TWITCH_STREAM_KEY):
