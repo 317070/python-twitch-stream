@@ -42,7 +42,7 @@ setup(
         "Topic :: Multimedia :: Video",
         "Topic :: Multimedia :: Video"
         ],
-    keywords="twitch stream video chat",
+    keywords="twitch, stream, video, chat",
     author="Jonas Degrave",
     author_email="erstaateenknolraapinmijntuin+pythontwitch@gmail.com",
     url="https://github.com/317070/python-twitch-stream",
