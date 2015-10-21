@@ -2,7 +2,7 @@ include *.rst
 include *.txt
 include LICENSE
 
-recursive-include python-twitch-stream/tests *.py
+recursive-include twitchstream/tests *.py
 include .coveragerc
 recursive-include examples *.py
 recursive-include docs *.rst conf.py *.css Makefile

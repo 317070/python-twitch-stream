@@ -1,2 +1,2 @@
 [run]
-omit = python-twitch-stream/tests/*
+omit = twitchstream/tests/*
