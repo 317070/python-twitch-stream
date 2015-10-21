@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-This file contains the python code used to interface with the Twitch chat.
-Twitch chat is IRC-based, so it is basically an IRC-bot, but with special features for Twitch,
-such as congestion control built in.
+This file contains the python code used to interface with the Twitch
+chat. Twitch chat is IRC-based, so it is basically an IRC-bot, but with
+special features for Twitch, such as congestion control built in.
 """
 
 import time
@@ -179,7 +179,7 @@ class TwitchChatStream(object):
             # process the complete buffer, until no data is left no more
             try:
                 msg = self.s.recv(4096)     # NON-BLOCKING RECEIVE!
-            except socket.error, e:
+            except socket.error as e:
                 err = e.args[0]
                 if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
                     # There is no more data available to read

@@ -150,7 +150,7 @@ class TwitchOutputStream(object):
             self.reset()
         assert (frame.shape == (self.height, self.width, 3),
                 "Frame has the wrong shape %s iso %s" %
-                (frame.shape,(self.height, self.width, 3)))
+                (frame.shape, (self.height, self.width, 3)))
 
         frame = np.clip(255*frame, 0, 255).astype('uint8')
         self.pipe.stdin.write(frame.tostring())
