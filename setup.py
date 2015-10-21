@@ -1,3 +1,8 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+The setup file for installing the library
+"""
 import os
 from setuptools import find_packages
 from setuptools import setup
