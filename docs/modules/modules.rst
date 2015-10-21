@@ -1,7 +1,7 @@
-python-twitch-stream
-====================
+twitchstream
+============
 
 .. toctree::
    :maxdepth: 4
 
-   python-twitch-stream
+   twitchstream
