@@ -11,7 +11,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-
+  modules/chat
+  modules/inputvideo
+  modules/outputvideo
 
 Indices and tables
 ==================
