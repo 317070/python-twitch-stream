@@ -1,5 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-j
+This file contains the classes used to read videostreams from Twitch
 """

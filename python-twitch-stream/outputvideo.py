@@ -1,6 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+"""
+This file contains the classes used to send videostreams to Twitch
+"""
+
 import numpy as np
 import subprocess as sp
 import signal
