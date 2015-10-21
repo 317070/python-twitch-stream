@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # python-twitch-stream documentation build configuration file, created by
-# sphinx-quickstart on Wed Oct 21 19:31:55 2015.
+# sphinx-quickstart on Wed Oct 21 19:45:57 2015.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -28,7 +28,11 @@ import os
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = []
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.viewcode',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -256,3 +260,7 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {'http://docs.python.org/': None}
