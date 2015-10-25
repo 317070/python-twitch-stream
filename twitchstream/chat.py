@@ -26,18 +26,21 @@ class TwitchChatStream(object):
     oauth = ""
     s = None
 
-    def __init__(self, username, oauth, connect=True):
+    def __init__(self, username, oauth):
         """Create a new stream object, and try to connect."""
         self.username = username
         self.oauth = oauth
         self.last_sent_time = time.time()
-        if connect:
-            # connect with the IRC-server already such that no object is
-            # created with false info
-            self.connect()
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.s.close()
 
     @staticmethod
-    def _twitch_logged_in(data):
+    def _logged_in_successful(data):
         """
         Test the login status from the returned communication of the
         server.
@@ -48,7 +51,8 @@ class TwitchChatStream(object):
         :return boolean, True when you are logged in.
         """
         if re.match(r'^:(testserver\.local|tmi\.twitch\.tv)'
-                    r' NOTICE \* :Login unsuccessful\r\n$', data):
+                    r' NOTICE \* :'
+                    r'(Login unsuccessful|Error logging in)*$', data):
             return False
         else:
             return True
@@ -105,13 +109,16 @@ class TwitchChatStream(object):
         s.send('PASS %s\r\n' % self.oauth)
         s.send('NICK %s\r\n' % self.username)
 
-        if not TwitchChatStream._twitch_logged_in(s.recv(1024)):
+        received = s.recv(1024)
+        print(received)
+        if not TwitchChatStream._logged_in_successful(received):
             # ... and they didn't accept our details
             raise
         else:
             # ... and they accepted our details
             # Connected to twitch.tv!
             # now make this socket non-blocking on the OS-level
+            print("succeeded")
             fcntl.fcntl(s, fcntl.F_SETFL, os.O_NONBLOCK)
             if self.s is not None:
                 self.s.close()  # close the previous socket
@@ -169,7 +176,7 @@ class TwitchChatStream(object):
         else:
             return None
 
-    def twitch_recieve_messages(self):
+    def twitch_receive_messages(self):
         """
         Call this function to process everything received by the socket
         :return: list of chat messages received
