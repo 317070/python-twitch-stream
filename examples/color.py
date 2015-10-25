@@ -6,7 +6,7 @@ and changes the color of the video according to the colors provided in
 the chat.
 """
 from __future__ import print_function
-from twitchstream.outputvideo import TwitchOutputStreamRepeater
+from twitchstream.outputvideo import TwitchBufferedOutputStream
 from twitchstream.chat import TwitchChatStream
 import argparse
 import time
@@ -32,7 +32,7 @@ if __name__ == "__main__":
                           oauth=args.oauth,
                           verbose=False) as chatstream:
 
-        with TwitchOutputStreamRepeater(
+        with TwitchBufferedOutputStream(
                 twitch_stream_key=args.streamkey,
                 width=640,
                 height=480,
@@ -71,4 +71,4 @@ if __name__ == "__main__":
                             [1, 1, 1])[None, None, :]
 
                 videostream.send_frame(frame)
-                time.sleep(1.0)
+                time.sleep(1.0 / videostream.fps)

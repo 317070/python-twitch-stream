@@ -10,7 +10,8 @@ import subprocess as sp
 import signal
 import threading
 import sys
-
+import Queue
+import time
 
 class TwitchOutputStream(object):
     """
@@ -138,7 +139,7 @@ class TwitchOutputStream(object):
 
         fh = open("/dev/null", "w")     # Throw away stream
         if self.verbose:
-            fh = None     # uncomment this line for viewing ffmpeg output
+            fh = None    # uncomment this line for viewing ffmpeg output
         self.pipe = sp.Popen(
             command,
             stdin=sp.PIPE,
@@ -151,7 +152,7 @@ class TwitchOutputStream(object):
     def __exit__(self, type, value, traceback):
         # sigint so avconv can clean up the stream nicely
         self.pipe.send_signal(signal.SIGINT)
-        # waiting doesn't work because reasons I don't know
+        # waiting doesn't work because of reasons I don't know
         # self.pipe.wait()
 
     def send_frame(self, frame):
@@ -177,14 +178,14 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
 
     Note: this will not make for a stable, stutter-less stream!
      It does not keep a buffer and you cannot synchronize using this
-     stream.
+     stream. Use TwitchBufferedOutputStream for this.
     """
     def __init__(self, *args, **kwargs):
         super(TwitchOutputStreamRepeater, self).__init__(*args, **kwargs)
         self.lastframe = np.ones((self.height, self.width, 3))
-        self.send_me_last_frame_again()     # Start sending the stream
+        self._send_me_last_frame_again()     # Start sending the stream
 
-    def send_me_last_frame_again(self):
+    def _send_me_last_frame_again(self):
         try:
             super(TwitchOutputStreamRepeater,
                   self).send_frame(self.lastframe)
@@ -195,7 +196,7 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
         else:
             # send the next frame at the appropriate time
             threading.Timer(1./self.fps,
-                            self.send_me_last_frame_again).start()
+                            self._send_me_last_frame_again).start()
 
     def send_frame(self, frame):
         """send frame of shape (height, width, 3)
@@ -206,3 +207,84 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
             containing values between 0.0 and 1.0
         """
         self.lastframe = frame
+
+
+class TwitchBufferedOutputStream(TwitchOutputStream):
+    """
+    This stream makes sure a steady framerate is kept by buffering
+    frames. Make sure not to have too many frames in buffer, since it
+    will increase the memory load considerably!
+
+    Adding frames is thread safe.
+    """
+    def __init__(self, *args, **kwargs):
+        super(TwitchBufferedOutputStream, self).__init__(*args, **kwargs)
+        self.last_frame = np.ones((self.height, self.width, 3))
+        self.last_frame_time = None
+        self.next_send_time = None
+        self.frame_counter = 0
+        self.q = Queue.PriorityQueue()
+        self.t = threading.Timer(0.0, self._send_me_last_frame_again)
+        self.t.daemon = True
+        self.t.start()
+
+    def _send_me_last_frame_again(self):
+        start_time = time.time()
+        try:
+            frame = self.q.get_nowait()
+            # frame[0] is frame count of the frame
+            # frame[1] is the frame
+            frame = frame[1]
+        except IndexError:
+            frame = self.last_frame
+        except Queue.Empty:
+            frame = self.last_frame
+        else:
+            self.last_frame = frame
+
+        try:
+            super(TwitchBufferedOutputStream, self).send_frame(frame)
+        except IOError:
+            # stream has been closed.
+            # This function is still called once when that happens.
+            pass
+
+        # send the next frame at the appropriate time
+        if self.next_send_time is None:
+            threading.Timer(1./self.fps,
+                            self._send_me_last_frame_again).start()
+            self.next_send_time = start_time + 1./self.fps
+        else:
+            self.next_send_time += 1./self.fps
+            next_event_time = self.next_send_time - start_time
+            if next_event_time > 0:
+                threading.Timer(next_event_time,
+                                self._send_me_last_frame_again).start()
+            else:
+                # we should already have sent something!
+                #
+                # not allowed for recursion problems :-(
+                # (maximum recursion depth)
+                # self.send_me_last_frame_again()
+                #
+                # other solution:
+                self.t = threading.Thread(
+                    target=self._send_me_last_frame_again).start()
+
+    def send_frame(self, frame, frame_counter=None):
+        """send frame of shape (height, width, 3)
+        with values between 0 and 1
+
+        :param frame: array containing the frame.
+        :type frame: numpy array with shape (height, width, 3)
+            containing values between 0.0 and 1.0
+        :param frame_counter: frame position number within stream.
+            Provide this when multi-threading to make sure frames don't
+            switch position
+        :type frame_counter: int
+        """
+        if frame_counter is None:
+            frame_counter = self.frame_counter
+            self.frame_counter += 1
+
+        self.q.put((frame_counter, frame))
