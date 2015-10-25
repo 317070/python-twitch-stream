@@ -45,6 +45,30 @@ if __name__ == "__main__":
             while True:
                 received = chatstream.twitch_receive_messages()
                 if received:
-                    print("rec:", received)
+                    if received[0]['message'] == "black":
+                        frame[:, :, :] = np.array(
+                            [0, 0, 0])[None, None, :]
+                    elif received[0]['message'] == "red":
+                        frame[:, :, :] = np.array(
+                            [1, 0, 0])[None, None, :]
+                    elif received[0]['message'] == "green":
+                        frame[:, :, :] = np.array(
+                            [0, 1, 0])[None, None, :]
+                    elif received[0]['message'] == "blue":
+                        frame[:, :, :] = np.array(
+                            [0, 0, 1])[None, None, :]
+                    elif received[0]['message'] == "cyan":
+                        frame[:, :, :] = np.array(
+                            [0, 1, 1])[None, None, :]
+                    elif received[0]['message'] == "magenta":
+                        frame[:, :, :] = np.array(
+                            [1, 0, 1])[None, None, :]
+                    elif received[0]['message'] == "yellow":
+                        frame[:, :, :] = np.array(
+                            [1, 1, 0])[None, None, :]
+                    elif received[0]['message'] == "white":
+                        frame[:, :, :] = np.array(
+                            [1, 1, 1])[None, None, :]
+
                 videostream.send_frame(frame)
                 time.sleep(1.0)
