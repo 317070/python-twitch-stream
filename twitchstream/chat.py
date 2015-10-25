@@ -6,7 +6,7 @@ This file contains the python code used to interface with the Twitch
 chat. Twitch chat is IRC-based, so it is basically an IRC-bot, but with
 special features for Twitch, such as congestion control built in.
 """
-
+from __future__ import print_function
 import time
 import socket
 import re
@@ -21,16 +21,26 @@ class TwitchChatStream(object):
     a channel. To use this, an oauth-account (of the user chatting)
     should be created. At the moment of writing, this can be done here:
     https://twitchapps.com/tmi/
+
+    :param username: Twitch username
+    :type username: string
+    :param oauth: oauth for logging in (see https://twitchapps.com/tmi/)
+    :type oauth: string
+    :param verbose: show all stream messages on stdout (for debugging)
+    :type verbose: boolean
     """
     username = ""
     oauth = ""
     s = None
 
-    def __init__(self, username, oauth):
+    def __init__(self, username, oauth, verbose=False):
         """Create a new stream object, and try to connect."""
         self.username = username
         self.oauth = oauth
+        self.verbose = verbose
+        self.current_channel = ""
         self.last_sent_time = time.time()
+        self.buffer = []
 
     def __enter__(self):
         self.connect()
@@ -67,7 +77,21 @@ class TwitchChatStream(object):
         :return: True when there is a request to ping, False otherwise
         """
         return re.match(
-            r'^PING :(tmi\.twitch\.tv|\.testserver\.local)$', data)
+            r'^PING :tmi\.twitch\.tv$', data)
+
+    @staticmethod
+    def _check_has_channel(data):
+        """
+        Check if the data from the server contains a channel switch.
+
+        :param data: the byte string from the server
+        :type data: list of bytes
+        :return: Name of channel when new channel, False otherwise
+        """
+        return re.findall(
+            r'^:[a-zA-Z0-9_]+\![a-zA-Z0-9_]+@[a-zA-Z0-9_]+'
+            r'\.tmi\.twitch\.tv '
+            r'JOIN #([a-zA-Z0-9_]+)$', data)
 
     @staticmethod
     def _check_has_message(data):
@@ -80,7 +104,7 @@ class TwitchChatStream(object):
         :return: returns iterator over these messages
         """
         return re.match(r'^:[a-zA-Z0-9_]+\![a-zA-Z0-9_]+@[a-zA-Z0-9_]+'
-                        r'(\.tmi\.twitch\.tv|\.testserver\.local) '
+                        r'\.tmi\.twitch\.tv '
                         r'PRIVMSG #[a-zA-Z0-9_]+ :.+$', data)
 
     def connect(self):
@@ -108,9 +132,13 @@ class TwitchChatStream(object):
         # Sending our details to twitch...
         s.send('PASS %s\r\n' % self.oauth)
         s.send('NICK %s\r\n' % self.username)
+        if self.verbose:
+            print('PASS %s\r\n' % self.oauth)
+            print('NICK %s\r\n' % self.username)
 
         received = s.recv(1024)
-        print(received)
+        if self.verbose:
+            print(received)
         if not TwitchChatStream._logged_in_successful(received):
             # ... and they didn't accept our details
             raise
@@ -118,12 +146,30 @@ class TwitchChatStream(object):
             # ... and they accepted our details
             # Connected to twitch.tv!
             # now make this socket non-blocking on the OS-level
-            print("succeeded")
             fcntl.fcntl(s, fcntl.F_SETFL, os.O_NONBLOCK)
             if self.s is not None:
                 self.s.close()  # close the previous socket
             self.s = s          # store the new socket
-            s.send('JOIN #%s\r\n' % self.username)
+            self.join_channel(self.username)
+
+            # Wait until we have switched channels
+            while self.current_channel != self.username:
+                self.twitch_receive_messages()
+
+    def _push_from_buffer(self):
+        """
+        push a message on the stack to the IRC stream
+        This is necessary to avoid Twitch congestion control
+        """
+        if len(self.buffer) > 0:
+            if time.time() - self.last_sent_time > 5:
+                try:
+                    message = self.buffer.pop(0)
+                    self.s.send(message)
+                    if self.verbose:
+                        print(message)
+                finally:
+                    self.last_sent_time = time.time()
 
     def _send(self, message):
         """
@@ -131,12 +177,8 @@ class TwitchChatStream(object):
         :param message: the message to be sent.
         :type message: string
         """
-        if time.time() - self.last_sent_time > 5:
-            if len(message) > 0:
-                try:
-                    self.s.send(message + "\n")
-                finally:
-                    self.last_sent_time = time.time()
+        if len(message) > 0:
+            self.buffer.append(message + "\n")
 
     def _send_pong(self):
         """
@@ -144,6 +186,17 @@ class TwitchChatStream(object):
         :return:
         """
         self._send("PONG")
+
+    def join_channel(self, channel):
+        """
+        Join a different chat channel on Twitch
+        Note, this function returns immediately, but the switch might
+        take a moment
+        :param channel: name of the channel (without #)
+        """
+        self.s.send('JOIN #%s\r\n' % channel)
+        if self.verbose:
+            print('JOIN #%s\r\n' % channel)
 
     def send_chat_message(self, message):
         """
@@ -160,7 +213,11 @@ class TwitchChatStream(object):
         :return:
         """
         if TwitchChatStream._check_has_ping(data):
-            self.send_pong()
+            self._send_pong()
+        if TwitchChatStream._check_has_channel(data):
+            self.current_channel = \
+                TwitchChatStream._check_has_channel(data)[0]
+
         if TwitchChatStream._check_has_message(data):
             # TODO: replace twice \! by !
             return {
@@ -181,6 +238,7 @@ class TwitchChatStream(object):
         Call this function to process everything received by the socket
         :return: list of chat messages received
         """
+        self._push_from_buffer()
         result = []
         while True:
             # process the complete buffer, until no data is left no more
@@ -200,6 +258,8 @@ class TwitchChatStream(object):
                     self.connect()
                     return result
             else:
+                if self.verbose:
+                    print(msg)
                 rec = [self._parse_message(line)
                        for line in filter(None, msg.split('\r\n'))]
                 rec = [r for r in rec if r]     # remove Nones

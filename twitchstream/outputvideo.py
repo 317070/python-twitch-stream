@@ -27,19 +27,23 @@ class TwitchOutputStream(object):
     :param ffmpeg_binary: the binary to use to create a videostream
         This is usually ffmpeg, but avconv on some (older) platforms
     :type ffmpeg_binary: String
+    :param verbose: show ffmpeg output in stdout
+    :type verbose: boolean
     """
     def __init__(self,
                  twitch_stream_key,
                  width=640,
                  height=480,
                  fps=30.,
-                 ffmpeg_binary="ffmpeg"):
+                 ffmpeg_binary="ffmpeg",
+                 verbose=False):
         self.twitch_stream_key = twitch_stream_key
         self.width = width
         self.height = height
         self.fps = fps
         self.pipe = None
         self.ffmpeg_binary = ffmpeg_binary
+        self.verbose = verbose
         self.reset()
 
     def reset(self):
@@ -121,7 +125,8 @@ class TwitchOutputStream(object):
             ]
 
         fh = open("/dev/null", "w")     # Throw away stream
-        # fh = None     # uncomment this line for viewing ffmpeg output
+        if self.verbose:
+            fh = None     # uncomment this line for viewing ffmpeg output
         self.pipe = sp.Popen(
             command,
             stdin=sp.PIPE,

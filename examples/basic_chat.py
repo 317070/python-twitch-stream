@@ -1,9 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-This is a small example which creates a twitch stream to connect with
-and changes the color of the video according to the colors provided in
-the chat.
+This is a small example which connects to a user's chat channel to
+send and receive the messages posted there
 """
 from __future__ import print_function
 from twitchstream.outputvideo import TwitchOutputStreamRepeater
@@ -23,28 +22,21 @@ if __name__ == "__main__":
                                '(visit https://twitchapps.com/tmi/ '
                                'to create one for your account)',
                           required=True)
-    required.add_argument('-s', '--streamkey',
-                          help='twitch streamkey',
-                          required=True)
     args = parser.parse_args()
 
+    # Launch a verbose (!) twitch stream
     with TwitchChatStream(username=args.username,
                           oauth=args.oauth,
-                          verbose=False) as chatstream:
+                          verbose=True) as chatstream:
 
-        with TwitchOutputStreamRepeater(
-                twitch_stream_key=args.streamkey,
-                width=640,
-                height=480,
-                fps=30.) as videostream:
+        # Send a message to this twitch stream
+        chatstream.send_chat_message("I'm reading this!")
 
-            chatstream.send_chat_message("Taking requests!")
-
-            frame = np.zeros((480, 640, 3))
-
-            while True:
-                received = chatstream.twitch_receive_messages()
-                if received:
-                    print("rec:", received)
-                videostream.send_frame(frame)
-                time.sleep(1.0)
+        # Continuously check if messages are received (every ~10s)
+        # This is necessary, if not, the chat stream will close itself
+        # after a couple of minutes (due to ping messages from twitch)
+        while True:
+            received = chatstream.twitch_receive_messages()
+            if received:
+                print("received:", received)
+            time.sleep(1)
