@@ -161,7 +161,6 @@ class TwitchOutputStream(object):
         :param frame: array containing the frame.
         :type frame: numpy array with shape (height, width, 3)
             containing values between 0.0 and 1.0
-
         """
         if self.pipe.poll():
             self.reset()
@@ -205,6 +204,5 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
         :param frame: array containing the frame.
         :type frame: numpy array with shape (height, width, 3)
             containing values between 0.0 and 1.0
-
         """
         self.lastframe = frame

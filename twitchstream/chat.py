@@ -29,9 +29,6 @@ class TwitchChatStream(object):
     :param verbose: show all stream messages on stdout (for debugging)
     :type verbose: boolean
     """
-    username = ""
-    oauth = ""
-    s = None
 
     def __init__(self, username, oauth, verbose=False):
         """Create a new stream object, and try to connect."""
@@ -41,6 +38,7 @@ class TwitchChatStream(object):
         self.current_channel = ""
         self.last_sent_time = time.time()
         self.buffer = []
+        self.s = None
 
     def __enter__(self):
         self.connect()
@@ -158,8 +156,8 @@ class TwitchChatStream(object):
 
     def _push_from_buffer(self):
         """
-        push a message on the stack to the IRC stream
-        This is necessary to avoid Twitch congestion control
+        Push a message on the stack to the IRC stream.
+        This is necessary to avoid Twitch overflow control.
         """
         if len(self.buffer) > 0:
             if time.time() - self.last_sent_time > 5:
@@ -174,6 +172,7 @@ class TwitchChatStream(object):
     def _send(self, message):
         """
         Send a message to the IRC stream
+
         :param message: the message to be sent.
         :type message: string
         """
@@ -183,15 +182,15 @@ class TwitchChatStream(object):
     def _send_pong(self):
         """
         Send a pong message, usually in reply to a received ping message
-        :return:
         """
         self._send("PONG")
 
     def join_channel(self, channel):
         """
-        Join a different chat channel on Twitch
+        Join a different chat channel on Twitch.
         Note, this function returns immediately, but the switch might
         take a moment
+
         :param channel: name of the channel (without #)
         """
         self.s.send('JOIN #%s\r\n' % channel)
@@ -201,14 +200,15 @@ class TwitchChatStream(object):
     def send_chat_message(self, message):
         """
         Send a chat message to the server.
-        :param message: String to send (don't use \n)
-        :return:
+
+        :param message: String to send (don't use \\n)
         """
         self._send("PRIVMSG #{0} :{1}".format(self.username, message))
 
     def _parse_message(self, data):
         """
         Parse the bytes received from the socket.
+
         :param data: the bytes received from the socket
         :return:
         """
@@ -236,7 +236,11 @@ class TwitchChatStream(object):
     def twitch_receive_messages(self):
         """
         Call this function to process everything received by the socket
-        :return: list of chat messages received
+        This needs to be called frequently enough (~10s) Twitch logs off
+        users not replying to ping commands.
+
+        :return: list of chat messages received. Each message is a dict
+            with the keys ['channel', 'username', 'message']
         """
         self._push_from_buffer()
         result = []
