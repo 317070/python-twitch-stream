@@ -4,11 +4,12 @@
 """
 This file contains the classes used to send videostreams to Twitch
 """
-
+from __future__ import print_function
 import numpy as np
 import subprocess as sp
 import signal
 import threading
+import sys
 
 
 class TwitchOutputStream(object):
@@ -44,7 +45,18 @@ class TwitchOutputStream(object):
         self.pipe = None
         self.ffmpeg_binary = ffmpeg_binary
         self.verbose = verbose
-        self.reset()
+        try:
+            self.reset()
+        except OSError:
+            print("There seems to be no %s available" % ffmpeg_binary)
+            if ffmpeg_binary == "ffmpeg":
+                print("ffmpeg can be installed using the following"
+                      "commands")
+                print("> sudo add-apt-repository "
+                      "ppa:mc3man/trusty-media")
+                print("> sudo apt-get update && "
+                      "sudo apt-get install ffmpeg")
+            sys.exit(1)
 
     def reset(self):
         """
