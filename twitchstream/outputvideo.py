@@ -206,7 +206,7 @@ class TwitchOutputStream(object):
             # downstream
             raise
 
-    def send_audio_frame(self, left_channel, right_channel):
+    def send_audio(self, left_channel, right_channel):
         """Add the audio samples to the stream. The left and the right
         channel should have the same shape.
         Raises an OSError when the stream is closed.
@@ -258,7 +258,7 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
             xr = np.linspace(0.0, 100*np.pi, int(AUDIORATE/self.fps) + 1)[:-1]
             self.lastaudioframe_left = np.sin(xl)
             self.lastaudioframe_right = np.sin(xr)
-            self._send_last_audio_frame()   # Start sending the stream
+            self._send_last_audio()   # Start sending the stream
 
     def _send_last_video_frame(self):
         try:
@@ -273,11 +273,11 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
             threading.Timer(1./self.fps,
                             self._send_last_video_frame).start()
 
-    def _send_last_audio_frame(self):
+    def _send_last_audio(self):
         try:
             super(TwitchOutputStreamRepeater,
-                  self).send_audio_frame(self.lastaudioframe_left,
-                                         self.lastaudioframe_right)
+                  self).send_audio(self.lastaudioframe_left,
+                                   self.lastaudioframe_right)
         except OSError:
             # stream has been closed.
             # This function is still called once when that happens.
@@ -285,7 +285,7 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
         else:
             # send the next frame at the appropriate time
             threading.Timer(1./self.fps,
-                            self._send_last_audio_frame).start()
+                            self._send_last_audio).start()
 
     def send_video_frame(self, frame):
         """Send frame of shape (height, width, 3)
@@ -297,7 +297,7 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
         """
         self.lastframe = frame
 
-    def send_audio_frame(self, left_channel, right_channel):
+    def send_audio(self, left_channel, right_channel):
         """Add the audio samples to the stream. The left and the right
         channel should have the same shape.
 
@@ -343,7 +343,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
             self.next_audio_send_time = None
             self.audio_frame_counter = 0
             self.q_audio = queue.PriorityQueue()
-            self.t = threading.Timer(0.0, self._send_audio_frame)
+            self.t = threading.Timer(0.0, self._send_audio)
             self.t.daemon = True
             self.t.start()
 
@@ -395,7 +395,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
         self.t.daemon = True
         self.t.start()
 
-    def _send_audio_frame(self):
+    def _send_audio(self):
         start_time = time.time()
         try:
             _, left_audio, right_audio = self.q_audio.get_nowait()
@@ -408,7 +408,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
 
         try:
             super(TwitchBufferedOutputStream, self
-                  ).send_audio_frame(left_audio, right_audio)
+                  ).send_audio(left_audio, right_audio)
         except OSError:
             # stream has been closed.
             # This function is still called once when that happens.
@@ -421,14 +421,14 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
 
         if self.next_audio_send_time is None:
             self.t = threading.Timer(downstream_time,
-                                     self._send_audio_frame)
+                                     self._send_audio)
             self.next_audio_send_time = start_time + downstream_time
         else:
             self.next_audio_send_time += downstream_time
             next_event_time = self.next_audio_send_time - start_time
             if next_event_time > 0:
                 self.t = threading.Timer(next_event_time,
-                                         self._send_audio_frame)
+                                         self._send_audio)
             else:
                 # we should already have sent something!
                 #
@@ -438,7 +438,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
                 #
                 # other solution:
                 self.t = threading.Thread(
-                    target=self._send_audio_frame)
+                    target=self._send_audio)
 
         self.t.daemon = True
         self.t.start()
@@ -461,10 +461,10 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
 
         self.q_video.put((frame_counter, frame))
 
-    def send_audio_frame(self,
-                         left_channel,
-                         right_channel,
-                         frame_counter=None):
+    def send_audio(self,
+                   left_channel,
+                   right_channel,
+                   frame_counter=None):
         """Add the audio samples to the stream. The left and the right
         channel should have the same shape.
 
@@ -485,7 +485,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
 
         self.q_audio.put((frame_counter, left_channel, right_channel))
 
-    def get_video_buffer_state(self):
+    def get_video_frame_buffer_state(self):
         return self.q_video.qsize()
 
     def get_audio_buffer_state(self):

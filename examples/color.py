@@ -39,18 +39,16 @@ if __name__ == "__main__":
             oauth=args.oauth,
             verbose=False) as chatstream:
 
-
         chatstream.send_chat_message("Taking requests!")
 
         frame = np.zeros((480, 640, 3))
+        frequency = 100
+        last_phase = 0
 
         while True:
             received = chatstream.twitch_receive_messages()
             if received:
-                if received[0]['message'] == "black":
-                    frame[:, :, :] = np.array(
-                        [0, 0, 0])[None, None, :]
-                elif received[0]['message'] == "red":
+                if received[0]['message'] == "red":
                     frame[:, :, :] = np.array(
                         [1, 0, 0])[None, None, :]
                 elif received[0]['message'] == "green":
@@ -59,18 +57,18 @@ if __name__ == "__main__":
                 elif received[0]['message'] == "blue":
                     frame[:, :, :] = np.array(
                         [0, 0, 1])[None, None, :]
-                elif received[0]['message'] == "cyan":
-                    frame[:, :, :] = np.array(
-                        [0, 1, 1])[None, None, :]
-                elif received[0]['message'] == "magenta":
-                    frame[:, :, :] = np.array(
-                        [1, 0, 1])[None, None, :]
-                elif received[0]['message'] == "yellow":
-                    frame[:, :, :] = np.array(
-                        [1, 1, 0])[None, None, :]
-                elif received[0]['message'] == "white":
-                    frame[:, :, :] = np.array(
-                        [1, 1, 1])[None, None, :]
+                elif received[0]['message'].isdigit():
+                    frequency = int(received[0]['message'])
 
-            videostream.send_video_frame(frame)
+            if videostream.get_video_frame_buffer_state() < 30:
+                videostream.send_video_frame(frame)
+
+            if videostream.get_audio_buffer_state() < 30:
+                x = np.linspace(last_phase,
+                                last_phase+frequency*2*np.pi,
+                                44100 + 1)
+                last_phase = x.pop()
+                audio = np.sin(x)
+                videostream.send_audio(audio, audio)
+
             time.sleep(1.0 / videostream.fps)
