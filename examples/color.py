@@ -27,50 +27,50 @@ if __name__ == "__main__":
                           help='twitch streamkey',
                           required=True)
     args = parser.parse_args()
-    # TODO: merge two with statements
 
     with TwitchBufferedOutputStream(
             twitch_stream_key=args.streamkey,
             width=640,
             height=480,
             fps=30.,
-            verbose=False) as videostream:
-        with TwitchChatStream(username=args.username,
-                              oauth=args.oauth,
-                              verbose=True) as chatstream:
+            verbose=True) as videostream, \
+        TwitchChatStream(
+            username=args.username,
+            oauth=args.oauth,
+            verbose=False) as chatstream:
 
 
-            chatstream.send_chat_message("Taking requests!")
+        chatstream.send_chat_message("Taking requests!")
 
-            frame = np.zeros((480, 640, 3))
+        frame = np.zeros((480, 640, 3))
 
-            while True:
-                received = chatstream.twitch_receive_messages()
-                if received:
-                    if received[0]['message'] == "black":
-                        frame[:, :, :] = np.array(
-                            [0, 0, 0])[None, None, :]
-                    elif received[0]['message'] == "red":
-                        frame[:, :, :] = np.array(
-                            [1, 0, 0])[None, None, :]
-                    elif received[0]['message'] == "green":
-                        frame[:, :, :] = np.array(
-                            [0, 1, 0])[None, None, :]
-                    elif received[0]['message'] == "blue":
-                        frame[:, :, :] = np.array(
-                            [0, 0, 1])[None, None, :]
-                    elif received[0]['message'] == "cyan":
-                        frame[:, :, :] = np.array(
-                            [0, 1, 1])[None, None, :]
-                    elif received[0]['message'] == "magenta":
-                        frame[:, :, :] = np.array(
-                            [1, 0, 1])[None, None, :]
-                    elif received[0]['message'] == "yellow":
-                        frame[:, :, :] = np.array(
-                            [1, 1, 0])[None, None, :]
-                    elif received[0]['message'] == "white":
-                        frame[:, :, :] = np.array(
-                            [1, 1, 1])[None, None, :]
+        while True:
+            received = chatstream.twitch_receive_messages()
+            if received:
+                if received[0]['message'] == "black":
+                    frame[:, :, :] = np.array(
+                        [0, 0, 0])[None, None, :]
+                elif received[0]['message'] == "red":
+                    frame[:, :, :] = np.array(
+                        [1, 0, 0])[None, None, :]
+                elif received[0]['message'] == "green":
+                    frame[:, :, :] = np.array(
+                        [0, 1, 0])[None, None, :]
+                elif received[0]['message'] == "blue":
+                    frame[:, :, :] = np.array(
+                        [0, 0, 1])[None, None, :]
+                elif received[0]['message'] == "cyan":
+                    frame[:, :, :] = np.array(
+                        [0, 1, 1])[None, None, :]
+                elif received[0]['message'] == "magenta":
+                    frame[:, :, :] = np.array(
+                        [1, 0, 1])[None, None, :]
+                elif received[0]['message'] == "yellow":
+                    frame[:, :, :] = np.array(
+                        [1, 1, 0])[None, None, :]
+                elif received[0]['message'] == "white":
+                    frame[:, :, :] = np.array(
+                        [1, 1, 1])[None, None, :]
 
-                videostream.send_video_frame(frame)
-                time.sleep(1.0 / videostream.fps)
+            videostream.send_video_frame(frame)
+            time.sleep(1.0 / videostream.fps)

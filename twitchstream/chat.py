@@ -221,14 +221,13 @@ class TwitchChatStream(object):
                 TwitchChatStream._check_has_channel(data)[0]
 
         if TwitchChatStream._check_has_message(data):
-            # TODO: replace twice \! by !
             return {
-                'channel': re.findall(r'^:.+\![a-zA-Z0-9_]+'
+                'channel': re.findall(r'^:.+![a-zA-Z0-9_]+'
                                       r'@[a-zA-Z0-9_]+'
                                       r'.+ '
                                       r'PRIVMSG (.*?) :',
                                       data)[0],
-                'username': re.findall(r'^:([a-zA-Z0-9_]+)\!', data)[0],
+                'username': re.findall(r'^:([a-zA-Z0-9_]+)!', data)[0],
                 'message': re.findall(r'PRIVMSG #[a-zA-Z0-9_]+ :(.+)',
                                       data)[0].decode('utf8')
             }
