@@ -6,9 +6,8 @@ and changes the color of the video according to the colors provided in
 the chat.
 """
 from __future__ import print_function
-from twitchstream.outputvideo import TwitchOutputStreamRepeater, TwitchBufferedOutputStream
+from twitchstream.outputvideo import TwitchBufferedOutputStream
 import argparse
-import time
 import numpy as np
 
 if __name__ == "__main__":
@@ -31,12 +30,10 @@ if __name__ == "__main__":
 
         while True:
             if videostream.get_video_frame_buffer_state() < 30:
-                # print("V",videostream.get_video_buffer_state())
                 frame = np.random.rand(480, 640, 3)
                 videostream.send_video_frame(frame)
 
             if videostream.get_audio_buffer_state() < 30:
-                # print("A",videostream.get_video_buffer_state())
                 left_audio = np.random.randn(1470)
                 right_audio = np.random.randn(1470)
                 videostream.send_audio(left_audio, right_audio)
