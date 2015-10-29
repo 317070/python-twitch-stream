@@ -27,20 +27,16 @@ Installation
 ------------
 
 In short, you can install a known compatible version of ffmpeg and
- the latest stable version over pip.
+the latest stable version over pip.
 
 .. code-block:: bash
 
   pip install python-twitch-stream
-  sudo add-apt-repository ppa:mc3man/trusty-media
-  sudo apt-get update && sudo apt-get install ffmpeg
 
-Or alternatively, install the latest
-python-twitch-stream development version via:
+Make sure to also install a recent ffmpeg version:
 
 .. code-block:: bash
 
-  pip install git+https://github.com/317070/python-twitch-stream
   sudo add-apt-repository ppa:mc3man/trusty-media
   sudo apt-get update && sudo apt-get install ffmpeg
 
@@ -48,6 +44,14 @@ The ffmpeg library needs to be very recent. There are plenty of bugs when
 running a stream using older versions of ffmpeg and avconv, including but
 not limited too 6GB of memory use, problems with the audio and
 synchronization of the audio and the video.
+
+Or alternatively, install the latest
+python-twitch-stream development version via:
+
+.. code-block:: bash
+
+  pip install git+https://github.com/317070/python-twitch-stream
+
 
 Documentation
 -------------
