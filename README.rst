@@ -26,20 +26,21 @@ Its main features are:
 Installation
 ------------
 
-In short, you can install a known compatible version of ffmpeg and the latest
+In short, you can install a known compatible version of ffmpeg and
+ the latest stable version over pip.
+
+.. code-block:: bash
+
+  pip install python-twitch-stream
+  sudo add-apt-repository ppa:mc3man/trusty-media
+  sudo apt-get update && sudo apt-get install ffmpeg
+
+Or alternatively, install the latest
 python-twitch-stream development version via:
 
 .. code-block:: bash
 
   pip install git+https://github.com/317070/python-twitch-stream
-  sudo add-apt-repository ppa:mc3man/trusty-media
-  sudo apt-get update && sudo apt-get install ffmpeg
-
-Or alternatively, install the latest stable version over pip.
-
-.. code-block:: bash
-
-  pip install python-twitch-stream
   sudo add-apt-repository ppa:mc3man/trusty-media
   sudo apt-get update && sudo apt-get install ffmpeg
 
@@ -138,9 +139,8 @@ the chat.
 
 For a fully-functional example, see `examples/color.py <examples/color.py>`_,
 and check the `Tutorial
-<http://317070.github.io/python/l>`_ for in-depth
-explanations of the same. More examples, code snippets and reproductions of
-recent research papers are maintained in the `examples directory
+<http://317070.github.io/python/>`_ for in-depth
+explanations of the same. More examples are maintained in the `examples directory
 <examples>`_.
 
 
