@@ -486,7 +486,23 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
         self.q_audio.put((frame_counter, left_channel, right_channel))
 
     def get_video_frame_buffer_state(self):
+        """Find out how many video frames are left in the buffer.
+        The buffer should never run dry, or audio and video will go out
+        of sync. Likewise, the more filled the buffer, the higher the
+        memory use and the delay between you putting your frame in the
+        stream and the frame showing up on Twitch.
+
+        :return integer estimate of the number of video frames left.
+        """
         return self.q_video.qsize()
 
     def get_audio_buffer_state(self):
+        """Find out how many audio fragments are left in the buffer.
+        The buffer should never run dry, or audio and video will go out
+        of sync. Likewise, the more filled the buffer, the higher the
+        memory use and the delay between you putting your frame in the
+        stream and the frame showing up on Twitch.
+
+        :return integer estimate of the number of audio fragments left.
+        """
         return self.q_audio.qsize()
