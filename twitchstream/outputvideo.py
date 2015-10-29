@@ -10,7 +10,10 @@ import subprocess
 import signal
 import threading
 import sys
-import Queue
+try:
+    import Queue as queue
+except ImportError:
+    import queue
 import time
 import os
 
@@ -323,7 +326,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
         self.last_frame_time = None
         self.next_video_send_time = None
         self.frame_counter = 0
-        self.q_video = Queue.PriorityQueue()
+        self.q_video = queue.PriorityQueue()
 
         # don't call the functions directly, as they block on the first
         # call
@@ -339,7 +342,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
             self.last_audio_time = None
             self.next_audio_send_time = None
             self.audio_frame_counter = 0
-            self.q_audio = Queue.PriorityQueue()
+            self.q_audio = queue.PriorityQueue()
             self.t = threading.Timer(0.0, self._send_audio_frame)
             self.t.daemon = True
             self.t.start()
@@ -353,7 +356,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
             frame = frame[1]
         except IndexError:
             frame = self.last_frame
-        except Queue.Empty:
+        except queue.Empty:
             frame = self.last_frame
         else:
             self.last_frame = frame
@@ -398,7 +401,7 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
             _, left_audio, right_audio = self.q_audio.get_nowait()
         except IndexError:
             left_audio, right_audio = self.last_audio
-        except Queue.Empty:
+        except queue.Empty:
             left_audio, right_audio = self.last_audio
         else:
             self.last_audio = (left_audio, right_audio)
