@@ -14,6 +14,12 @@ def test_logged_in_successful():
         ":tmi.twitch.tv NOTICE * :Error logging in")
     assert res is False
     res = TwitchChatStream._logged_in_successful(
+        ":tmi.twitch.tv NOTICE * :Error logging in\n")
+    assert res is False
+    res = TwitchChatStream._logged_in_successful(
+        ":tmi.twitch.tv NOTICE * :Error logging in\r\n")
+    assert res is False
+    res = TwitchChatStream._logged_in_successful(
         ":tmi.twitch.tv 001 sdsd :Welcome, GLHF!")
     assert res is True
     res = TwitchChatStream._logged_in_successful(

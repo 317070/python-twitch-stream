@@ -60,7 +60,8 @@ class TwitchChatStream(object):
         """
         if re.match(r'^:(testserver\.local|tmi\.twitch\.tv)'
                     r' NOTICE \* :'
-                    r'(Login unsuccessful|Error logging in)*$', data):
+                    r'(Login unsuccessful|Error logging in)*$',
+                    data.strip()):
             return False
         else:
             return True
@@ -139,7 +140,8 @@ class TwitchChatStream(object):
             print(received)
         if not TwitchChatStream._logged_in_successful(received):
             # ... and they didn't accept our details
-            raise
+            raise IOError("Twitch did not accept the username-oauth "
+                          "combination")
         else:
             # ... and they accepted our details
             # Connected to twitch.tv!
