@@ -4,5 +4,4 @@ include LICENSE
 
 recursive-include twitchstream/tests *.py
 include .coveragerc
-recursive-include examples
 recursive-include docs *.rst conf.py Makefile
