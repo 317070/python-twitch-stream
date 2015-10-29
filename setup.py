@@ -16,6 +16,8 @@ try:
 except IOError:
     README = CHANGES = ''
 
+
+
 install_requires = [
     'numpy',
     ]
@@ -44,7 +46,6 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
         "Topic :: Communications :: Chat :: Internet Relay Chat",
-        "Topic :: Multimedia :: Video",
         "Topic :: Multimedia :: Video"
         ],
     keywords="twitch, stream, video, chat",
