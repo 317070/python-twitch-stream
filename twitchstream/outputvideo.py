@@ -33,8 +33,8 @@ class TwitchOutputStream(object):
     :type height: int
     :param fps: the number of frames per second of the videostream
     :type fps: float
-    :param audio_enabled: whether there will be sound or not
-    :type audio_enabled: boolean
+    :param enable_audio: whether there will be sound or not
+    :type enable_audio: boolean
     :param ffmpeg_binary: the binary to use to create a videostream
         This is usually ffmpeg, but avconv on some (older) platforms
     :type ffmpeg_binary: String
@@ -47,7 +47,7 @@ class TwitchOutputStream(object):
                  height=480,
                  fps=30.,
                  ffmpeg_binary="ffmpeg",
-                 audio_enabled=False,
+                 enable_audio=False,
                  verbose=False):
         self.twitch_stream_key = twitch_stream_key
         self.width = width
@@ -58,7 +58,7 @@ class TwitchOutputStream(object):
         self.audio_pipe = None
         self.ffmpeg_binary = ffmpeg_binary
         self.verbose = verbose
-        self.audio_enabled = audio_enabled
+        self.audio_enabled = enable_audio
         try:
             self.reset()
         except OSError:
@@ -98,7 +98,7 @@ class TwitchOutputStream(object):
             '-s', '%dx%d' % (self.width, self.height),
             '-pix_fmt', 'rgb24',  # The input are raw bytes
             '-thread_queue_size', '1024',
-            '-i', '/tmp/videopipe',            # The input comes from a pipe
+            '-i', '/tmp/videopipe',  # The input comes from a pipe
 
             # Twitch needs to receive sound in their streams!
             # '-an',            # Tells FFMPEG not to expect any audio
