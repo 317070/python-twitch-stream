@@ -153,7 +153,7 @@ the chat.
                 # add some more, but take care to stay in sync with
                 # the video! Audio and video buffer separately,
                 # so they will go out of sync if the number of video
-                # frames does not match the number of audio segments!
+                # frames does not match the number of audio samples!
                 elif videostream.get_audio_buffer_state() < 30:
                     x = np.linspace(last_phase,
                                     last_phase +
