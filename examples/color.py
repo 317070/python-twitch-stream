@@ -27,7 +27,7 @@ if __name__ == "__main__":
                           help='twitch streamkey',
                           required=True)
     args = parser.parse_args()
-
+    # TODO: merge two with statements
     with TwitchChatStream(username=args.username,
                           oauth=args.oauth,
                           verbose=False) as chatstream:

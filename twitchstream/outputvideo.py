@@ -4,14 +4,18 @@
 """
 This file contains the classes used to send videostreams to Twitch
 """
-from __future__ import print_function
+from __future__ import print_function, division
 import numpy as np
-import subprocess as sp
+import subprocess
 import signal
 import threading
 import sys
 import Queue
 import time
+import os
+
+AUDIORATE = 44100
+
 
 class TwitchOutputStream(object):
     """
@@ -26,6 +30,8 @@ class TwitchOutputStream(object):
     :type height: int
     :param fps: the number of frames per second of the videostream
     :type fps: float
+    :param audio_enabled: whether there will be sound or not
+    :type audio_enabled: boolean
     :param ffmpeg_binary: the binary to use to create a videostream
         This is usually ffmpeg, but avconv on some (older) platforms
     :type ffmpeg_binary: String
@@ -38,14 +44,18 @@ class TwitchOutputStream(object):
                  height=480,
                  fps=30.,
                  ffmpeg_binary="ffmpeg",
+                 audio_enabled=False,
                  verbose=False):
         self.twitch_stream_key = twitch_stream_key
         self.width = width
         self.height = height
         self.fps = fps
-        self.pipe = None
+        self.ffmpeg_process = None
+        self.video_pipe = None
+        self.audio_pipe = None
         self.ffmpeg_binary = ffmpeg_binary
         self.verbose = verbose
+        self.audio_enabled = audio_enabled
         try:
             self.reset()
         except OSError:
@@ -64,14 +74,15 @@ class TwitchOutputStream(object):
         Reset the videostream by restarting ffmpeg
         """
 
-        if self.pipe is not None:
+        if self.ffmpeg_process is not None:
             # Close the previous stream
             try:
-                self.pipe.send_signal(signal.SIGINT)
+                self.ffmpeg_process.send_signal(signal.SIGINT)
             except OSError:
                 pass
 
-        command = [
+        command = []
+        command.extend([
             self.ffmpeg_binary,
             '-loglevel', 'verbose',
             '-y',       # overwrite previous file/stream
@@ -83,18 +94,31 @@ class TwitchOutputStream(object):
             # size of one frame
             '-s', '%dx%d' % (self.width, self.height),
             '-pix_fmt', 'rgb24',  # The input are raw bytes
-            '-i', '-',            # The input comes from a pipe
+            '-thread_queue_size', '1024',
+            '-i', '/tmp/videopipe',            # The input comes from a pipe
 
             # Twitch needs to receive sound in their streams!
             # '-an',            # Tells FFMPEG not to expect any audio
-            '-ar', '8000',
-            '-ac', '1',
-            '-f', 's16le',
-            '-i', '/dev/zero',  # silence alternative, works forever.
-            # '-i','http://stream1.radiostyle.ru:8001/tunguska',
-            # '-filter_complex',
-            # '[0:1][1:0]amix=inputs=2:duration=first[all_audio]'
-
+        ])
+        if self.audio_enabled:
+            command.extend([
+                '-ar', '%d' % AUDIORATE,
+                '-ac', '2',
+                '-f', 's16le',
+                '-thread_queue_size', '1024',
+                '-i', '/tmp/audiopipe'
+            ])
+        else:
+            command.extend([
+                '-ar', '8000',
+                '-ac', '1',
+                '-f', 's16le',
+                '-i', '/dev/zero',  # silence alternative, works forever
+                # '-i','http://stream1.radiostyle.ru:8001/tunguska',
+                # '-filter_complex',
+                # '[0:1][1:0]amix=inputs=2:duration=first[all_audio]'
+            ])
+        command.extend([
             # VIDEO CODEC PARAMETERS
             '-vcodec', 'libx264',
             '-r', '%d' % self.fps,
@@ -135,40 +159,79 @@ class TwitchOutputStream(object):
             # STREAM TO TWITCH
             '-f', 'flv', 'rtmp://live-ams.twitch.tv/app/%s' %
             self.twitch_stream_key
-            ]
+            ])
 
-        fh = open("/dev/null", "w")     # Throw away stream
+        devnullpipe = open("/dev/null", "w")     # Throw away stream
         if self.verbose:
-            fh = None    # uncomment this line for viewing ffmpeg output
-        self.pipe = sp.Popen(
+            devnullpipe = None
+        self.ffmpeg_process = subprocess.Popen(
             command,
-            stdin=sp.PIPE,
-            stderr=fh,
-            stdout=fh)
+            stdin=subprocess.PIPE,
+            stderr=devnullpipe,
+            stdout=devnullpipe)
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
         # sigint so avconv can clean up the stream nicely
-        self.pipe.send_signal(signal.SIGINT)
+        self.ffmpeg_process.send_signal(signal.SIGINT)
         # waiting doesn't work because of reasons I don't know
         # self.pipe.wait()
 
-    def send_frame(self, frame):
-        """send frame of shape (height, width, 3)
-        with values between 0 and 1
+    def send_video_frame(self, frame):
+        """Send frame of shape (height, width, 3)
+        with values between 0 and 1.
+        Raises an OSError when the stream is closed.
 
         :param frame: array containing the frame.
         :type frame: numpy array with shape (height, width, 3)
             containing values between 0.0 and 1.0
         """
-        if self.pipe.poll():
-            self.reset()
+        if self.video_pipe is None:
+            if not os.path.exists('/tmp/videopipe'):
+                os.mkfifo('/tmp/videopipe')
+            self.video_pipe = os.open('/tmp/videopipe', os.O_WRONLY)
+
         assert frame.shape == (self.height, self.width, 3)
 
         frame = np.clip(255*frame, 0, 255).astype('uint8')
-        self.pipe.stdin.write(frame.tostring())
+        try:
+            os.write(self.video_pipe, frame.tostring())
+        except OSError:
+            # The pipe has been closed. Reraise and handle it further
+            # downstream
+            raise
+
+    def send_audio_frame(self, left_channel, right_channel):
+        """Add the audio samples to the stream. The left and the right
+        channel should have the same shape.
+        Raises an OSError when the stream is closed.
+
+        :param left_channel: array containing the audio signal.
+        :type left_channel: numpy array with shape (l, )
+            containing values between -1.0 and 1.0. l can be any integer
+        :param right_channel: array containing the audio signal.
+        :type right_channel: numpy array with shape (l, )
+            containing values between -1.0 and 1.0. l can be any integer
+        """
+        if self.audio_pipe is None:
+            if not os.path.exists('/tmp/audiopipe'):
+                os.mkfifo('/tmp/audiopipe')
+            self.audio_pipe = os.open('/tmp/audiopipe', os.O_WRONLY)
+
+        assert len(left_channel.shape) == 1
+        assert left_channel.shape == right_channel.shape
+
+        frame = np.column_stack((left_channel, right_channel)).flatten()
+
+        frame = np.clip(32767*frame, -32767, 32767).astype('int16')
+        try:
+            os.write(self.audio_pipe, frame.tostring())
+        except OSError:
+            # The pipe has been closed. Reraise and handle it further
+            # downstream
+            raise
 
 
 class TwitchOutputStreamRepeater(TwitchOutputStream):
@@ -176,37 +239,74 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
     This stream makes sure a steady framerate is kept by repeating the
     last frame when needed.
 
-    Note: this will not make for a stable, stutter-less stream!
+    Note: this will not generate a stable, stutter-less stream!
      It does not keep a buffer and you cannot synchronize using this
      stream. Use TwitchBufferedOutputStream for this.
     """
     def __init__(self, *args, **kwargs):
         super(TwitchOutputStreamRepeater, self).__init__(*args, **kwargs)
-        self.lastframe = np.ones((self.height, self.width, 3))
-        self._send_me_last_frame_again()     # Start sending the stream
 
-    def _send_me_last_frame_again(self):
+        self.lastframe = np.ones((self.height, self.width, 3))
+        self._send_last_video_frame()   # Start sending the stream
+
+        if self.audio_enabled:
+            # some audible sine waves
+            xl = np.linspace(0.0, 10*np.pi, int(AUDIORATE/self.fps) + 1)[:-1]
+            xr = np.linspace(0.0, 100*np.pi, int(AUDIORATE/self.fps) + 1)[:-1]
+            self.lastaudioframe_left = np.sin(xl)
+            self.lastaudioframe_right = np.sin(xr)
+            self._send_last_audio_frame()   # Start sending the stream
+
+    def _send_last_video_frame(self):
         try:
             super(TwitchOutputStreamRepeater,
-                  self).send_frame(self.lastframe)
-        except IOError:
+                  self).send_video_frame(self.lastframe)
+        except OSError:
             # stream has been closed.
             # This function is still called once when that happens.
             pass
         else:
             # send the next frame at the appropriate time
             threading.Timer(1./self.fps,
-                            self._send_me_last_frame_again).start()
+                            self._send_last_video_frame).start()
 
-    def send_frame(self, frame):
-        """send frame of shape (height, width, 3)
-        with values between 0 and 1
+    def _send_last_audio_frame(self):
+        try:
+            super(TwitchOutputStreamRepeater,
+                  self).send_audio_frame(self.lastaudioframe_left,
+                                         self.lastaudioframe_right)
+        except OSError:
+            # stream has been closed.
+            # This function is still called once when that happens.
+            pass
+        else:
+            # send the next frame at the appropriate time
+            threading.Timer(1./self.fps,
+                            self._send_last_audio_frame).start()
+
+    def send_video_frame(self, frame):
+        """Send frame of shape (height, width, 3)
+        with values between 0 and 1.
 
         :param frame: array containing the frame.
         :type frame: numpy array with shape (height, width, 3)
             containing values between 0.0 and 1.0
         """
         self.lastframe = frame
+
+    def send_audio_frame(self, left_channel, right_channel):
+        """Add the audio samples to the stream. The left and the right
+        channel should have the same shape.
+
+        :param left_channel: array containing the audio signal.
+        :type left_channel: numpy array with shape (l, )
+            containing values between -1.0 and 1.0. l can be any integer
+        :param right_channel: array containing the audio signal.
+        :type right_channel: numpy array with shape (l, )
+            containing values between -1.0 and 1.0. l can be any integer
+        """
+        self.lastaudioframe_left = left_channel
+        self.lastaudioframe_right = right_channel
 
 
 class TwitchBufferedOutputStream(TwitchOutputStream):
@@ -221,17 +321,33 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
         super(TwitchBufferedOutputStream, self).__init__(*args, **kwargs)
         self.last_frame = np.ones((self.height, self.width, 3))
         self.last_frame_time = None
-        self.next_send_time = None
+        self.next_video_send_time = None
         self.frame_counter = 0
-        self.q = Queue.PriorityQueue()
-        self.t = threading.Timer(0.0, self._send_me_last_frame_again)
+        self.q_video = Queue.PriorityQueue()
+
+        # don't call the functions directly, as they block on the first
+        # call
+        self.t = threading.Timer(0.0, self._send_video_frame)
         self.t.daemon = True
         self.t.start()
 
-    def _send_me_last_frame_again(self):
+        if self.audio_enabled:
+            # send audio at about the same rate as video
+            # this can be changed
+            self.last_audio = (np.zeros((int(AUDIORATE/self.fps), )),
+                               np.zeros((int(AUDIORATE/self.fps), )))
+            self.last_audio_time = None
+            self.next_audio_send_time = None
+            self.audio_frame_counter = 0
+            self.q_audio = Queue.PriorityQueue()
+            self.t = threading.Timer(0.0, self._send_audio_frame)
+            self.t.daemon = True
+            self.t.start()
+
+    def _send_video_frame(self):
         start_time = time.time()
         try:
-            frame = self.q.get_nowait()
+            frame = self.q_video.get_nowait()
             # frame[0] is frame count of the frame
             # frame[1] is the frame
             frame = frame[1]
@@ -243,23 +359,25 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
             self.last_frame = frame
 
         try:
-            super(TwitchBufferedOutputStream, self).send_frame(frame)
-        except IOError:
+            super(TwitchBufferedOutputStream, self
+                  ).send_video_frame(frame)
+        except OSError:
             # stream has been closed.
             # This function is still called once when that happens.
-            pass
+            # Don't call this function again and everything should be
+            # cleaned up just fine.
+            return
 
         # send the next frame at the appropriate time
-        if self.next_send_time is None:
-            threading.Timer(1./self.fps,
-                            self._send_me_last_frame_again).start()
-            self.next_send_time = start_time + 1./self.fps
+        if self.next_video_send_time is None:
+            self.t = threading.Timer(1./self.fps, self._send_video_frame)
+            self.next_video_send_time = start_time + 1./self.fps
         else:
-            self.next_send_time += 1./self.fps
-            next_event_time = self.next_send_time - start_time
+            self.next_video_send_time += 1./self.fps
+            next_event_time = self.next_video_send_time - start_time
             if next_event_time > 0:
-                threading.Timer(next_event_time,
-                                self._send_me_last_frame_again).start()
+                self.t = threading.Timer(next_event_time,
+                                         self._send_video_frame)
             else:
                 # we should already have sent something!
                 #
@@ -269,9 +387,60 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
                 #
                 # other solution:
                 self.t = threading.Thread(
-                    target=self._send_me_last_frame_again).start()
+                    target=self._send_video_frame)
 
-    def send_frame(self, frame, frame_counter=None):
+        self.t.daemon = True
+        self.t.start()
+
+    def _send_audio_frame(self):
+        start_time = time.time()
+        try:
+            _, left_audio, right_audio = self.q_audio.get_nowait()
+        except IndexError:
+            left_audio, right_audio = self.last_audio
+        except Queue.Empty:
+            left_audio, right_audio = self.last_audio
+        else:
+            self.last_audio = (left_audio, right_audio)
+
+        try:
+            super(TwitchBufferedOutputStream, self
+                  ).send_audio_frame(left_audio, right_audio)
+        except OSError:
+            # stream has been closed.
+            # This function is still called once when that happens.
+            # Don't call this function again and everything should be
+            # cleaned up just fine.
+            return
+
+        # send the next frame at the appropriate time
+        downstream_time = len(left_audio) / AUDIORATE
+
+        if self.next_audio_send_time is None:
+            self.t = threading.Timer(downstream_time,
+                                     self._send_audio_frame)
+            self.next_audio_send_time = start_time + downstream_time
+        else:
+            self.next_audio_send_time += downstream_time
+            next_event_time = self.next_audio_send_time - start_time
+            if next_event_time > 0:
+                self.t = threading.Timer(next_event_time,
+                                         self._send_audio_frame)
+            else:
+                # we should already have sent something!
+                #
+                # not allowed for recursion problems :-(
+                # (maximum recursion depth)
+                # self.send_me_last_frame_again()
+                #
+                # other solution:
+                self.t = threading.Thread(
+                    target=self._send_audio_frame)
+
+        self.t.daemon = True
+        self.t.start()
+
+    def send_video_frame(self, frame, frame_counter=None):
         """send frame of shape (height, width, 3)
         with values between 0 and 1
 
@@ -287,4 +456,34 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
             frame_counter = self.frame_counter
             self.frame_counter += 1
 
-        self.q.put((frame_counter, frame))
+        self.q_video.put((frame_counter, frame))
+
+    def send_audio_frame(self,
+                         left_channel,
+                         right_channel,
+                         frame_counter=None):
+        """Add the audio samples to the stream. The left and the right
+        channel should have the same shape.
+
+        :param left_channel: array containing the audio signal.
+        :type left_channel: numpy array with shape (l, )
+            containing values between -1.0 and 1.0. l can be any integer
+        :param right_channel: array containing the audio signal.
+        :type right_channel: numpy array with shape (l, )
+            containing values between -1.0 and 1.0. l can be any integer
+        :param frame_counter: frame position number within stream.
+            Provide this when multi-threading to make sure frames don't
+            switch position
+        :type frame_counter: int
+        """
+        if frame_counter is None:
+            frame_counter = self.audio_frame_counter
+            self.audio_frame_counter += 1
+
+        self.q_audio.put((frame_counter, left_channel, right_channel))
+
+    def get_video_buffer_state(self):
+        return self.q_video.qsize()
+
+    def get_audio_buffer_state(self):
+        return self.q_audio.qsize()
