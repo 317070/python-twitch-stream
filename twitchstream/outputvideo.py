@@ -209,11 +209,11 @@ class TwitchOutputStream(object):
         Raises an OSError when the stream is closed.
 
         :param left_channel: array containing the audio signal.
-        :type left_channel: numpy array with shape (l, )
-            containing values between -1.0 and 1.0. l can be any integer
+        :type left_channel: numpy array with shape (k, )
+            containing values between -1.0 and 1.0. k can be any integer
         :param right_channel: array containing the audio signal.
-        :type right_channel: numpy array with shape (l, )
-            containing values between -1.0 and 1.0. l can be any integer
+        :type right_channel: numpy array with shape (k, )
+            containing values between -1.0 and 1.0. k can be any integer
         """
         if self.audio_pipe is None:
             if not os.path.exists('/tmp/audiopipe'):
@@ -299,11 +299,11 @@ class TwitchOutputStreamRepeater(TwitchOutputStream):
         channel should have the same shape.
 
         :param left_channel: array containing the audio signal.
-        :type left_channel: numpy array with shape (l, )
-            containing values between -1.0 and 1.0. l can be any integer
+        :type left_channel: numpy array with shape (k, )
+            containing values between -1.0 and 1.0. k can be any integer
         :param right_channel: array containing the audio signal.
-        :type right_channel: numpy array with shape (l, )
-            containing values between -1.0 and 1.0. l can be any integer
+        :type right_channel: numpy array with shape (k, )
+            containing values between -1.0 and 1.0. k can be any integer
         """
         self.lastaudioframe_left = left_channel
         self.lastaudioframe_right = right_channel
@@ -466,10 +466,10 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
         channel should have the same shape.
 
         :param left_channel: array containing the audio signal.
-        :type left_channel: numpy array with shape (l, )
+        :type left_channel: numpy array with shape (k, )
             containing values between -1.0 and 1.0. l can be any integer
         :param right_channel: array containing the audio signal.
-        :type right_channel: numpy array with shape (l, )
+        :type right_channel: numpy array with shape (k, )
             containing values between -1.0 and 1.0. l can be any integer
         :param frame_counter: frame position number within stream.
             Provide this when multi-threading to make sure frames don't
