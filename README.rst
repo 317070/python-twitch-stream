@@ -40,7 +40,8 @@ Make sure to also install a recent ffmpeg version:
   sudo add-apt-repository ppa:mc3man/trusty-media
   sudo apt-get update && sudo apt-get install ffmpeg
 
-The ffmpeg library needs to be very recent. There are plenty of bugs when
+The ffmpeg library needs to be very recent (written in october 2015).
+There are plenty of bugs when
 running a stream using older versions of ffmpeg or avconv, including but
 not limited to 6GB of memory use, problems with the audio and
 synchronization of the audio and the video.
