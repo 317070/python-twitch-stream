@@ -15,6 +15,8 @@ Its main features are:
 * Allows to interact with the chat of your channel by sending chat messages
   and reading what other users post.
 
+There is a complete tutorial available at `Tutorial
+<http://317070.github.io/python/>`_.
 
 Installation
 ------------
@@ -46,10 +48,8 @@ python-twitch-stream development version via:
   pip install git+https://github.com/317070/python-twitch-stream
 
 
-Documentation
--------------
-
-Documentation is available online: http://python-twitch-stream.readthedocs.org/
+Support
+-------
 
 For support, please use the github issues on `the repository
 <https://github.com/317070/python-twitch-stream/issues>`_.
