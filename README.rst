@@ -106,7 +106,7 @@ the chat.
                 enable_audio=True,
                 verbose=False) as videostream, \
             TwitchChatStream(
-                username=args.username,
+                username=args.username.lower(),  # Must provide a lowercase username.
                 oauth=args.oauth,
                 verbose=False) as chatstream:
 
