@@ -6,8 +6,8 @@ The setup file for installing the library
 import os
 from setuptools import find_packages
 from setuptools import setup
-
-version = '1.0.1'
+from twitchstream import __version__ as VERSION
+version = VERSION
 
 here = os.path.abspath(os.path.dirname(__file__))
 try:
@@ -36,7 +36,7 @@ setup(
                 "their video and chat",
     long_description="\n\n".join([README, CHANGES]),
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Other Audience",
