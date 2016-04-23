@@ -24,7 +24,7 @@ if __name__ == "__main__":
             height=480,
             fps=30.,
             verbose=True,
-            audio_enabled=True) as videostream:
+            enable_audio=True) as videostream:
 
         frame = np.zeros((480, 640, 3))
 
