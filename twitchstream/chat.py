@@ -129,13 +129,13 @@ class TwitchChatStream(object):
 
         # Connected to twitch
         # Sending our details to twitch...
-        s.send('PASS %s\r\n' % self.oauth)
-        s.send('NICK %s\r\n' % self.username)
+        s.send(('PASS %s\r\n' % self.oauth).encode('utf-8'))
+        s.send(('NICK %s\r\n' % self.username).encode('utf-8'))
         if self.verbose:
             print('PASS %s\r\n' % self.oauth)
             print('NICK %s\r\n' % self.username)
 
-        received = s.recv(1024)
+        received = s.recv(1024).decode()
         if self.verbose:
             print(received)
         if not TwitchChatStream._logged_in_successful(received):
@@ -165,7 +165,7 @@ class TwitchChatStream(object):
             if time.time() - self.last_sent_time > 5:
                 try:
                     message = self.buffer.pop(0)
-                    self.s.send(message)
+                    self.s.send(message.encode('utf-8'))
                     if self.verbose:
                         print(message)
                 finally:
@@ -195,7 +195,7 @@ class TwitchChatStream(object):
 
         :param channel: name of the channel (without #)
         """
-        self.s.send('JOIN #%s\r\n' % channel)
+        self.s.send(('JOIN #%s\r\n' % channel).encode('utf-8'))
         if self.verbose:
             print('JOIN #%s\r\n' % channel)
 
@@ -248,7 +248,7 @@ class TwitchChatStream(object):
         while True:
             # process the complete buffer, until no data is left no more
             try:
-                msg = self.s.recv(4096)     # NON-BLOCKING RECEIVE!
+                msg = self.s.recv(4096).decode()     # NON-BLOCKING RECEIVE!
             except socket.error as e:
                 err = e.args[0]
                 if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
