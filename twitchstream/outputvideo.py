@@ -54,7 +54,6 @@ class TwitchOutputStream(object):
         self.height = height
         self.fps = fps
         self.ffmpeg_process = None
-        self.video_pipe = None
         self.audio_pipe = None
         self.ffmpeg_binary = ffmpeg_binary
         self.verbose = verbose
@@ -98,7 +97,7 @@ class TwitchOutputStream(object):
             '-s', '%dx%d' % (self.width, self.height),
             '-pix_fmt', 'rgb24',  # The input are raw bytes
             '-thread_queue_size', '1024',
-            '-i', '/tmp/videopipe',  # The input comes from a pipe
+            '-i', '-',  # The input comes from a pipe
 
             # Twitch needs to receive sound in their streams!
             # '-an',            # Tells FFMPEG not to expect any audio
@@ -113,13 +112,8 @@ class TwitchOutputStream(object):
             ])
         else:
             command.extend([
-                '-ar', '8000',
-                '-ac', '1',
-                '-f', 's16le',
-                '-i', '/dev/zero',  # silence alternative, works forever
-                # '-i','http://stream1.radiostyle.ru:8001/tunguska',
-                # '-filter_complex',
-                # '[0:1][1:0]amix=inputs=2:duration=first[all_audio]'
+                '-f', 'lavfi',
+                '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100'
             ])
         command.extend([
             # VIDEO CODEC PARAMETERS
@@ -164,7 +158,7 @@ class TwitchOutputStream(object):
             self.twitch_stream_key
             ])
 
-        devnullpipe = open("/dev/null", "w")     # Throw away stream
+        devnullpipe = subprocess.DEVNULL
         if self.verbose:
             devnullpipe = None
         self.ffmpeg_process = subprocess.Popen(
@@ -191,16 +185,12 @@ class TwitchOutputStream(object):
         :type frame: numpy array with shape (height, width, 3)
             containing values between 0.0 and 1.0
         """
-        if self.video_pipe is None:
-            if not os.path.exists('/tmp/videopipe'):
-                os.mkfifo('/tmp/videopipe')
-            self.video_pipe = os.open('/tmp/videopipe', os.O_WRONLY)
 
         assert frame.shape == (self.height, self.width, 3)
 
         frame = np.clip(255*frame, 0, 255).astype('uint8')
         try:
-            os.write(self.video_pipe, frame.tostring())
+            self.ffmpeg_process.stdin.write(frame.tostring())
         except OSError:
             # The pipe has been closed. Reraise and handle it further
             # downstream
