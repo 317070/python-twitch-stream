@@ -229,7 +229,7 @@ class TwitchChatStream(object):
                                       data)[0],
                 'username': re.findall(r'^:([a-zA-Z0-9_]+)!', data)[0],
                 'message': re.findall(r'PRIVMSG #[a-zA-Z0-9_]+ :(.+)',
-                                      data)[0].decode('utf8')
+                                      data)[0]
             }
         else:
             return None
