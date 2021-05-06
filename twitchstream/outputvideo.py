@@ -17,6 +17,8 @@ except ImportError:
 import time
 import os
 
+import requests
+
 AUDIORATE = 44100
 
 
@@ -154,9 +156,8 @@ class TwitchOutputStream(object):
             '-threads', '2',
 
             # STREAM TO TWITCH
-            '-f', 'flv', 'rtmp://live-ams.twitch.tv/app/%s' %
-            self.twitch_stream_key
-            ])
+            '-f', 'flv', self.get_closest_ingest(),
+        ])
 
         devnullpipe = subprocess.DEVNULL
         if self.verbose:
@@ -225,6 +226,14 @@ class TwitchOutputStream(object):
             # The pipe has been closed. Reraise and handle it further
             # downstream
             raise
+
+    def get_closest_ingest(self):
+        closest_server = requests.get(url='https://ingest.twitch.tv/api/v2/ingests').json()['ingests'][0]
+        url_template = closest_server['url_template']
+        print("Streaming to closest server: %s at %s" % (closest_server['name'],
+                                                         url_template.replace('/app/{stream_key}', '')))
+        return url_template.format(
+            stream_key=self.twitch_stream_key)
 
 
 class TwitchOutputStreamRepeater(TwitchOutputStream):
@@ -496,3 +505,4 @@ class TwitchBufferedOutputStream(TwitchOutputStream):
         :return integer estimate of the number of audio fragments left.
         """
         return self.q_audio.qsize()
+
